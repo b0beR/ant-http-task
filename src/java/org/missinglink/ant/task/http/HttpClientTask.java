@@ -259,42 +259,46 @@ public class HttpClientTask extends Task {
     // setup HttpClient
     initHttpClient();
 
-    // invoke HttpClient
-    HttpResponse response = null;
-    log("********************");
-    log("HTTP Request");
-    log("********************");
-    log("URL:\t\t" + httpClient.getUri());
-    log("Method:\t\t" + httpClient.getMethod().name());
-    log("Credentials:\t" + (null == httpClient.getUsername() ? "no" : "yes"));
-    if (httpClient.getHeaders().size() > 0) {
-      log("Headers:\t\tyes");
-      for (final Entry<String, String> entry : httpClient.getHeaders().entrySet()) {
-        log("\t" + entry.getKey() + ": " + entry.getValue());
+    if (printRequestHeaders) {
+      log("********************");
+      log("HTTP Request");
+      log("********************");
+      log("URL:\t\t" + httpClient.getUri());
+      log("Method:\t\t" + httpClient.getMethod().name());
+      log("Credentials:\t" + (null == httpClient.getUsername() ? "no" : "yes"));
+      if (httpClient.getHeaders().size() > 0) {
+        log("Headers:\t\tyes");
+        for (final Entry<String, String> entry : httpClient.getHeaders().entrySet()) {
+          log("\t" + entry.getKey() + ": " + entry.getValue());
+        }
+      } else {
+        log("Headers:\t\tno");
+      }
+      if (httpClient.getQueryUnencoded().size() > 0) {
+        log("Query Parameters:\tyes");
+        for (final Entry<String, String> entry : httpClient.getQueryUnencoded().entrySet()) {
+          log("\t" + entry.getKey() + "=" + entry.getValue());
+        }
+      } else {
+        log("Query Parameters:\tno");
+      }
+      log("Entity:\t\t" + (null == httpClient.getEntity() ? "no" : "yes"));
+      if (null != httpClient.getEntity() && printRequest) {
+        try {
+          log("------ BEGIN ENTITY ------");
+          log(httpClient.getEntityAsString());
+          log("------- END ENTITY -------");
+        } catch (final IOException e) {
+          log(e, Project.MSG_ERR);
+          throw new BuildException(e);
+        }
       }
     } else {
-      log("Headers:\t\tno");
-    }
-    if (httpClient.getQueryUnencoded().size() > 0) {
-      log("Query Parameters:\tyes");
-      for (final Entry<String, String> entry : httpClient.getQueryUnencoded().entrySet()) {
-        log("\t" + entry.getKey() + "=" + entry.getValue());
-      }
-    } else {
-      log("Query Parameters:\tno");
-    }
-    log("Entity:\t\t" + (null == httpClient.getEntity() ? "no" : "yes"));
-    if (null != httpClient.getEntity() && printRequest) {
-      try {
-        log("------ BEGIN ENTITY ------");
-        log(httpClient.getEntityAsString());
-        log("------- END ENTITY -------");
-      } catch (final IOException e) {
-        log(e, Project.MSG_ERR);
-        throw new BuildException(e);
-      }
+      log("HTTP " + httpClient.getMethod().name() + " request to " + httpClient.getUri());
     }
 
+    // invoke HttpClient
+    HttpResponse response = null;
     try {
       response = httpClient.invoke();
     } catch (final HttpInvocationException e) {
@@ -306,24 +310,26 @@ public class HttpClientTask extends Task {
     }
 
     if (null != response) {
-      log("");
-      log("********************");
-      log("HTTP Response");
-      log("********************");
-      log("Status:\t\t" + response.getStatus());
-      if (response.getHeaders().size() > 0) {
-        log("Headers:\t\tyes");
-        for (final Entry<String, List<String>> entry : response.getHeaders().entrySet()) {
-          for (final String value : entry.getValue()) {
-            if (null == entry.getKey()) {
-              log("\t" + value);
-            } else {
-              log("\t" + entry.getKey() + ": " + value);
+      if (printResponseHeaders) {
+        log("");
+        log("********************");
+        log("HTTP Response");
+        log("********************");
+        log("Status:\t\t" + response.getStatus());
+        if (response.getHeaders().size() > 0) {
+          log("Headers:\t\tyes");
+          for (final Entry<String, List<String>> entry : response.getHeaders().entrySet()) {
+            for (final String value : entry.getValue()) {
+              if (null == entry.getKey()) {
+                log("\t" + value);
+              } else {
+                log("\t" + entry.getKey() + ": " + value);
+              }
             }
           }
+        } else {
+          log("Headers:\t\tno");
         }
-      } else {
-        log("Headers:\t\tno");
       }
 
       if (null == outFile) {
@@ -339,7 +345,9 @@ public class HttpClientTask extends Task {
           }
         }
       } else if (null != response.getEntity()) {
-        log("Entity written to file:\t" + outFile.getAbsolutePath());
+        if (printResponse) {
+          log("Entity written to file:\t" + outFile.getAbsolutePath());
+        }
         try {
           final FileOutputStream fos = new FileOutputStream(outFile);
           fos.write(response.getEntity());

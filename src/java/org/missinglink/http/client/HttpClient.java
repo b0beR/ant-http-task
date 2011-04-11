@@ -207,7 +207,7 @@ package org.missinglink.http.client;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -372,13 +372,27 @@ public class HttpClient {
         httpUrlConnection.setRequestProperty("Authorization", basicAuth);
       }
 
+      // if headers are set, add them to the request
+      if (this.getHeaders().size() > 0) {
+        for (final Entry<String, String> entry : this.getHeaders().entrySet()) {
+          httpUrlConnection.setRequestProperty(entry.getKey(), entry.getValue());
+        }
+      }
+
       // if an entity is set, write it to the connection
       if (null != entity) {
         httpUrlConnection.setDoOutput(true);
-        final OutputStreamWriter writer = new OutputStreamWriter(httpUrlConnection.getOutputStream());
-        final String entityAsString = getEntityAsString();
-        writer.write(entityAsString);
-        writer.close();
+        final OutputStream os = httpUrlConnection.getOutputStream();
+        final byte[] buf = new byte[1048576];
+        int numRead;
+        while ((numRead = entity.read(buf)) >= 0) {
+          os.write(buf, 0, numRead);
+        }
+        // final OutputStreamWriter writer = new
+        // OutputStreamWriter(httpUrlConnection.getOutputStream());
+        // final String entityAsString = getEntityAsString();
+        // writer.write(entityAsString);
+        // writer.close();
       }
 
       // read the response entity
